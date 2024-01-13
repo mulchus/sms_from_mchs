@@ -1,16 +1,26 @@
-# This is a sample Python script.
+import requests
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+from environs import Env
 
 
-# Press the green button in the gutter to run the script.
+def main():
+    url = 'https://smsc.ru/rest/send/'
+    # url = 'https://www2.smsc.ru/rest/send/'
+    params = {
+        'login': env('SMSC_LOGIN'),
+        'psw': env('SMSC_PASSWORD'),
+        'phones': env('PHONES'),
+        'mes': 'Сегодня будет гроза\n Сегодня будет холодно',
+        'cost': 1,
+        'fmt': 3,
+    }
+    print(params)
+    response = requests.post(url, json=params)
+    print(response.json())
+    
+
 if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    env = Env()
+    env.read_env()
+    
+    main()
