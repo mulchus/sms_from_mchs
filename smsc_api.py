@@ -40,23 +40,39 @@ from contextlib import suppress
 async def main(login, psw, valid, phones, msg):
 
     # print(login, psw, valid, phones, msg)
+    
+    # отправка СМС
+    # send_url = 'https://smsc.ru/rest/send/'
+    # # url = 'https://www2.smsc.ru/rest/send/'
+    # params = {
+    #     'login': login,
+    #     'psw': psw,
+    #     'valid': valid,
+    #     'phones': phones,
+    #     'mes': msg,
+    #     'cost': 1,  # 1 – получить стоимость рассылки без реальной отправки., 0 (по умолчанию) – обычная отправка.
+    #     'fmt': 3,
+    #     'op': 1,
+    #     'err': 1,
+    #     'all': 2,
+    # }
+    # response = await asks.post(send_url, json=params)
+    # print(response.json())
+    ## print(response.text)
 
-    url = 'https://smsc.ru/rest/send/'
-    # url = 'https://www2.smsc.ru/rest/send/'
+    # запрос статуса СМС
+    status_url = 'https://smsc.ru/rest/status/'
     params = {
         'login': login,
         'psw': psw,
-        'valid': valid,
-        'phones': phones,
-        'mes': msg,
-        'cost': 1,  # 1 – получить стоимость рассылки без реальной отправки., 0 (по умолчанию) – обычная отправка.
+        'phone': phones,
+        'id': 104063045,
         'fmt': 3,
+        'all': 0,
     }
-
-    # print(params)
-
-    response = await asks.post(url, json=params)
+    response = await asks.post(status_url, json=params)
     print(response.json())
+    # print(response.text)
 
 
 if __name__ == '__main__':
