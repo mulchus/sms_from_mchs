@@ -1,2 +1,6 @@
-requests~=2.31.0
-environs~=10.0.0
+requests~=2.31.*
+environs~=10.0.*
+trio==0.23.*
+trio-websocket==0.11.*
+asks==3.0.*
+asyncclick==8.1.*
