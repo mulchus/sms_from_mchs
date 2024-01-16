@@ -4,6 +4,7 @@ import asyncclick as click
 from environs import Env
 from contextlib import suppress
 from contextvars import ContextVar
+from mock import patch
 
 
 class SmscApiError(Exception):
@@ -47,7 +48,7 @@ class SmscApiError(Exception):
 async def main(login, psw, valid, phones, msg):
 
     # print(login, psw, valid, phones, msg)
-    
+
     # отправка СМС
     # send_url = 'https://smsc.ru/rest/send/'
     # # url = 'https://www2.smsc.ru/rest/send/'
@@ -172,4 +173,8 @@ if __name__ == '__main__':
     with suppress(KeyboardInterrupt):
         env = Env()
         env.read_env()
-        main(_anyio_backend="trio")
+        # main(_anyio_backend="trio")
+        with patch('__main__.request_smsc') as mock_function:
+            mock_function.return_value = {'cnt': 1, 'id': 24}
+            mock_function.return_value = {'status': 1, 'last_date': '28.12.2019 19:20:22', 'last_timestamp': 1577550022}
+        result = await mock_function()
