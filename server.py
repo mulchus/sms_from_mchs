@@ -42,18 +42,16 @@ async def _receive() -> None:
 
 @app.websocket("/ws")
 async def ws() -> None:
-    try:
-        task = asyncio.ensure_future(_receive())
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(_receive())
         async for message in broker.subscribe():
             await websocket.send(message)
-    finally:
-        task.cancel()
-        await task
+    
     # try:
     #     async with trio.open_nursery() as nursery:
     #         nursery.start_soon(_receive)
-    #     async for message in broker.subscribe():
-    #         await websocket.send(message)
+    #         async for message in broker.subscribe():
+    #             await websocket.send(message)
     
     # except BaseException as e:
     #     print(f'websocket funcs crashed with exception: {e}')
