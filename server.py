@@ -59,9 +59,22 @@ async def index():
 
 async def receive():
     while True:
-        data = {}
-        # await websocket.send(f'Received: {await websocket.receive()}')
-        await websocket.send_json(data)
+        for num in range(100):
+            data = {
+                "msgType": "SMSMailingStatus",
+                "SMSMailings": [
+                    {
+                        "timestamp": 1123131392.734,
+                        "SMSText": "Сегодня гроза! Будьте осторожны!",
+                        "mailingId": "1",
+                        "totalSMSAmount": 100,
+                        "deliveredSMSAmount": num,
+                        "failedSMSAmount": 0,
+                    },
+                ]
+            }
+            await websocket.send_json(data)
+            await trio.sleep(1)
 
 
 @app.websocket('/ws')
