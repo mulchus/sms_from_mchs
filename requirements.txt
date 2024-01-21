@@ -4,3 +4,4 @@ asks==3.0.*
 asyncclick==8.1.*
 mock==5.1.*
 quart-trio==0.11.*
+pydantic==2.5.*

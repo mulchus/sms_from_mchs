@@ -116,7 +116,7 @@ async def request_smsc(
         # ...   'send',
         # ...   login='smsc_login',
         # ...   password='smsc_password',
-        # ...   payload={'phones': '+79123456789'}
+        # ...   payload={'phones': '+79123456789', 'mes': 'test'}
         # ... )
         {'cnt': 1, 'id': 24}
         # >>> await request_smsc(
@@ -141,15 +141,14 @@ async def request_smsc(
         payload['op'] = 1
         payload['err'] = 1
         payload['all'] = 2
-        payload['cost'] = 1
-        payload['mes'] = 'Внимание, вечером будет шторм!'
+        payload['cost'] = 3     # 1 – получить стоимость рассылки без реальной отправки.
         
-        # print(payload)
+        print(payload)
         response = await asks.post(
             'https://smsc.ru/rest/send/',
             json=payload,
         )
-        print(response.json())
+        # print(response.json())
         
         if 'error_code' in response.json():
             raise SmscApiError(f'API error {response.json()}')
@@ -163,7 +162,7 @@ async def request_smsc(
             'https://smsc.ru/rest/status/',
             json=payload,
         )
-        print(response.json())
+        # print(response.json())
         
         if 'error_code' in response.json():
             raise SmscApiError(f'API error {response.json()}')
@@ -173,8 +172,8 @@ async def request_smsc(
         raise SmscApiError(f'API error, http_method: {http_method}, api_method: {api_method}')
 
 
-async def do_somthing():
-    return await request_smsc('POST', 'send', login=env('SMSC_LOGIN'), password=env('SMSC_PASSWORD'))
+async def request_smsc_mock(login, password):
+    return await request_smsc('POST', 'send', login=login, password=password)
 
 
 if __name__ == '__main__':
@@ -184,7 +183,7 @@ if __name__ == '__main__':
         # main(_anyio_backend="trio")
         # test do_somthing and request_smsc
         with patch('__main__.request_smsc') as mock_function:
-            mock_function.return_value = {'cnt': 1, 'id': 24}
+            # mock_function.return_value = {'cnt': 1, 'id': 24}
             mock_function.return_value = {'status': 1, 'last_date': '28.12.2019 19:20:22', 'last_timestamp': 1577550022}
-            print(trio.run(do_somthing))
+            print(trio.run(request_smsc_mock, env('SMSC_LOGIN'), env('SMSC_PASSWORD')))
         
