@@ -59,7 +59,9 @@ async def index():
 
 async def receive():
     while True:
-        await websocket.send(f'Received: {await websocket.receive()}')
+        data = {}
+        # await websocket.send(f'Received: {await websocket.receive()}')
+        await websocket.send_json(data)
 
 
 @app.websocket('/ws')
