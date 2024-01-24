@@ -1,6 +1,4 @@
 import asyncio
-# import aioredis
-import trio
 import trio_asyncio
 import argparse
 from redis import asyncio as aioredis
@@ -95,18 +93,6 @@ async def main():
         await redis.close()
 
 
-# не работает - примеры отсюда https://trio-asyncio.readthedocs.io/en/latest/usage.html#startup-and-shutdown
-# async def trio_main():
-#     async with trio_asyncio.open_loop() as loop:
-#         await trio_asyncio.run(main)
-
-
-async def async_main_wrapper():
-    async with trio_asyncio.open_loop() as loop:
-        assert loop == asyncio.get_event_loop()
-        await main()
-
-
 if __name__ == '__main__':
-    trio_asyncio.run(async_main_wrapper)
+    trio_asyncio.run(trio_asyncio.aio_as_trio(main))
     
