@@ -1,4 +1,3 @@
-# import asyncio
 import trio
 import trio_asyncio
 import argparse
@@ -13,95 +12,79 @@ def create_argparser():
         '--address',
         action='store',
         dest='redis_uri',
-        help='Redis URL. See examples at https://aioredis.readthedocs.io/en/latest/api/high-level/#aioredis.client.Redis.from_url',
+        help='Redis URL. See examples at '
+             'https://aioredis.readthedocs.io/en/latest/api/high-level/#aioredis.client.Redis.from_url',
         default='redis://localhost'
     )
     return parser
 
 
 async def main():
-    parser = create_argparser()
-    args = parser.parse_args()
+    async with trio_asyncio.open_loop():
+        parser = create_argparser()
+        args = parser.parse_args()
 
-    # redis = aioredis.from_url(args.redis_uri, decode_responses=True)
-    redis = aioredis.from_url(args.redis_uri, decode_responses=True)
+        redis = aioredis.from_url(args.redis_uri, decode_responses=True)
 
-    try:
-        db = Database(redis)
+        try:
+            db = Database(redis)
 
-        sms_id = '99'
+            sms_id = '99'
 
-        phones = [
-            '+7 999 519 05 57',
-            '911',
-            '112',
-        ]
-        text = 'Вечером будет шторм!'
-        
-        # await db.add_sms_mailing(sms_id, phones, text)
-        await trio_asyncio.aio_as_trio(db.add_sms_mailing)(sms_id, phones, text)
+            phones = [
+                '+7 999 519 05 57',
+                '911',
+                '112',
+            ]
+            text = 'Вечером будет шторм!'
 
-        sms_ids = await trio_asyncio.aio_as_trio(db.list_sms_mailings())
-        print('Registered mailings ids', sms_ids)
+            await trio_asyncio.aio_as_trio(db.add_sms_mailing)(sms_id, phones, text)
 
-        pending_sms_list = await trio_asyncio.aio_as_trio(db.get_pending_sms_list())
-        print('pending:')
-        print(pending_sms_list)
+            sms_ids = await trio_asyncio.aio_as_trio(db.list_sms_mailings())
+            print('Registered mailings ids', sms_ids)
 
-        await trio_asyncio.aio_as_trio(db.update_sms_status_in_bulk([
-            # [sms_id, phone_number, status]
-            [sms_id, '112', 'failed'],
-            [sms_id, '911', 'pending'],
-            [sms_id, '+7 999 519 05 57', 'delivered'],
-            # following statuses are available: failed, pending, delivered
-        ]))
+            pending_sms_list = await trio_asyncio.aio_as_trio(db.get_pending_sms_list())
+            print('pending:')
+            print(pending_sms_list)
 
-        pending_sms_list = await trio_asyncio.aio_as_trio(db.get_pending_sms_list())
-        print('pending:')
-        print(pending_sms_list)
+            await trio_asyncio.aio_as_trio(db.update_sms_status_in_bulk([
+                # [sms_id, phone_number, status]
+                [sms_id, '112', 'failed'],
+                [sms_id, '911', 'pending'],
+                [sms_id, '+7 999 519 05 57', 'delivered'],
+                # following statuses are available: failed, pending, delivered
+            ]))
 
-        sms_mailings = await trio_asyncio.aio_as_trio(db.get_sms_mailings(sms_id))
-        print('sms_mailings')
-        print(sms_mailings)
+            pending_sms_list = await trio_asyncio.aio_as_trio(db.get_pending_sms_list())
+            print('pending:')
+            print(pending_sms_list)
 
-        async def send():
-            while True:
-                # await asyncio.sleep(1)
-                await trio.sleep(1)
-                await redis.publish('updates', sms_id)
+            sms_mailings = await trio_asyncio.aio_as_trio(db.get_sms_mailings(sms_id))
+            print('sms_mailings')
+            print(sms_mailings)
 
-        async def listen():
-            channel = redis.pubsub()
-            await channel.subscribe('updates')
+            async def send():
+                while True:
+                    await trio.sleep(1)
+                    await trio_asyncio.aio_as_trio(redis.publish)('updates', sms_id)
 
-            while True:
-                message = await channel.get_message(ignore_subscribe_messages=True, timeout=1.0)
+            async def listen():
+                channel = redis.pubsub()
+                await trio_asyncio.aio_as_trio(channel.subscribe)('updates')
 
-                if not message:
-                    continue
+                while True:
+                    message = await trio_asyncio.aio_as_trio(channel.get_message)(ignore_subscribe_messages=True,
+                                                                                  timeout=1.0)
+                    if not message:
+                        continue
+                    print('Got message:', repr(message['data']))
 
-                print('Got message:', repr(message['data']))
+            async with trio.open_nursery() as nursery:
+                nursery.start_soon(send)
+                nursery.start_soon(listen)
 
-        # await asyncio.gather(
-        #     send(),
-        #     listen()
-        # )
-        
-        # async with trio.open_nursery() as nursery:
-        #     nursery.start_soon(send)
-        #     nursery.start_soon(listen)
-        
-        async with trio_asyncio.open_loop():
-            # async part of your main program here
-            await trio.sleep(.1)
-            # await trio_asyncio.aio_as_trio(send)
-            # await trio_asyncio.aio_as_trio(listen)
-            await send()
-            await listen()
-            # await trio_asyncio.aio_as_trio(asyncio.sleep)(2)
-            
-    finally:
-        await redis.close  # or redis.close()
+        finally:
+            await trio_asyncio.aio_as_trio(redis.close)()
 
 
 if __name__ == '__main__':
