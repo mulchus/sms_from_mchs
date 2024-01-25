@@ -1,5 +1,4 @@
 import trio
-import asyncio
 import trio_asyncio
 import json
 import smsc_api
@@ -76,32 +75,32 @@ async def create():
             '911',
             '112',
         ]
-        text = 'Вечером будет шторм!'
+        text = form['text']
 
         await trio_asyncio.aio_as_trio(db.add_sms_mailing)(sms_id, phones, text)
 
         sms_ids = await trio_asyncio.aio_as_trio(db.list_sms_mailings())
-        print('Registered mailings ids', sms_ids)
+        print('В БД есть СМС с этими id', sms_ids)
 
-        pending_sms_list = await trio_asyncio.aio_as_trio(db.get_pending_sms_list())
-        print('pending:')
-        print(pending_sms_list)
-
-        await trio_asyncio.aio_as_trio(db.update_sms_status_in_bulk([
-            # [sms_id, phone_number, status]
-            [sms_id, '112', 'failed'],
-            [sms_id, '911', 'pending'],
-            [sms_id, '+7 999 519 05 57', 'delivered'],
-            # following statuses are available: failed, pending, delivered
-        ]))
-
-        pending_sms_list = await trio_asyncio.aio_as_trio(db.get_pending_sms_list())
-        print('pending:')
-        print(pending_sms_list)
-
-        sms_mailings = await trio_asyncio.aio_as_trio(db.get_sms_mailings(sms_id))
-        print('sms_mailings')
-        print(sms_mailings)
+        # pending_sms_list = await trio_asyncio.aio_as_trio(db.get_pending_sms_list())
+        # print('pending:')
+        # print(pending_sms_list)
+        #
+        # await trio_asyncio.aio_as_trio(db.update_sms_status_in_bulk([
+        #     # [sms_id, phone_number, status]
+        #     [sms_id, '112', 'failed'],
+        #     [sms_id, '911', 'pending'],
+        #     [sms_id, '+7 999 519 05 57', 'delivered'],
+        #     # following statuses are available: failed, pending, delivered
+        # ]))
+        #
+        # pending_sms_list = await trio_asyncio.aio_as_trio(db.get_pending_sms_list())
+        # print('pending:')
+        # print(pending_sms_list)
+        #
+        # sms_mailings = await trio_asyncio.aio_as_trio(db.get_sms_mailings(sms_id))
+        # print('sms_mailings')
+        # print(sms_mailings)
 
         return json.dumps(form['text'])
     else:
@@ -139,8 +138,6 @@ async def receive():
 async def ws():
     try:
         async with trio.open_nursery() as nursery:
-            # pass
-            # nursery.start_soon()
             nursery.start_soon(receive)
     except BaseException as e:
         print(f'websocket funcs crashed with exception: {e}')
@@ -152,8 +149,6 @@ async def run_server():
         config.bind = [f"127.0.0.1:5000"]
         config.use_reloader = True
 
-        # здесь живёт остальной код инициализации
-        # ...
         await serve(app, config)
 
 
@@ -164,5 +159,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     redis = aioredis.from_url(args.redis_uri, decode_responses=True)
     db = Database(redis)
-    # app.run()
     trio_asyncio.run(run_server)
