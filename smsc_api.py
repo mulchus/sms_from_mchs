@@ -81,7 +81,6 @@ async def main(login, psw, valid, phones, msg):
     }
     response = await asks.post(status_url, json=params)
     print(response.json())
-    # print(response.text)
 
 
 smsc_login: ContextVar[str] = ContextVar('smsc_login')
@@ -141,9 +140,9 @@ async def request_smsc(
         payload['op'] = 1
         payload['err'] = 1
         payload['all'] = 2
-        payload['cost'] = 3     # 1 – получить стоимость рассылки без реальной отправки.
+        payload['cost'] = 1     # 1 – получить стоимость рассылки без реальной отправки. 3 - отправка, стоимость+баланс
         
-        print(payload)
+        # print(payload)
         response = await asks.post(
             'https://smsc.ru/rest/send/',
             json=payload,
@@ -157,7 +156,7 @@ async def request_smsc(
     
     elif http_method == 'POST' and api_method == 'status':
         
-        print(payload)
+        # print(payload)
         response = await asks.post(
             'https://smsc.ru/rest/status/',
             json=payload,

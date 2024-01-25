@@ -8,3 +8,4 @@ pydantic==2.5.*
 redis==5.0.*
 aioredis==2.0.*
 trio-asyncio==0.13.*
+hypercorn==0.16.*

@@ -6,7 +6,6 @@ import argparse
 
 from quart import render_template, websocket, request
 from quart_trio import QuartTrio
-from mock import patch
 from environs import Env
 from pydantic import BaseModel, constr, ValidationError
 from hypercorn.trio import serve
@@ -23,8 +22,8 @@ class Message(BaseModel):
 
 
 def create_argparser():
-    parser = argparse.ArgumentParser(description='Redis database usage example')
-    parser.add_argument(
+    _parser = argparse.ArgumentParser(description='Redis database usage example')
+    _parser.add_argument(
         '--address',
         action='store',
         dest='redis_uri',
@@ -32,7 +31,7 @@ def create_argparser():
              'https://aioredis.readthedocs.io/en/latest/api/high-level/#aioredis.client.Redis.from_url',
         default='redis://localhost'
     )
-    return parser
+    return _parser
 
 
 @app.route("/send/", methods=["GET", "POST"])
@@ -43,64 +42,38 @@ async def create():
             Message(text=form['text'])  # валидация сообщения при помощи pydantic
         except ValidationError as e:
             return json.dumps({'errorMessage': e.errors()[0]['msg']})
-        # здесь закомментирована реальная отправка и проверка статуса
-        # send_ressponce = await smsc_api.request_smsc(
-        #     http_method='POST',
-        #     api_method='send',
-        #     login=env('SMSC_LOGIN'),
-        #     password=env('SMSC_PASSWORD'),
-        #     payload={'phones': env('PHONES'), 'mes': form['text']}
-        # )
+        
+        # реальная отправка
+        send_ressponce = await smsc_api.request_smsc(
+            http_method='POST',
+            api_method='send',
+            login=env('SMSC_LOGIN'),
+            password=env('SMSC_PASSWORD'),
+            payload={'phones': env('PHONES'), 'mes': form['text']}
+        )
         # print(send_ressponce)
-        # for phone in env('PHONES').split(','):
-        #     status_ressponce = await smsc_api.request_smsc(
-        #         http_method='POST',
-        #         api_method='status',
-        #         login=env('SMSC_LOGIN'),
-        #         password=env('SMSC_PASSWORD'),
-        #         payload={'phone': phone, 'id': send_ressponce['id']}
-        #     )
-        #     print(status_ressponce)
-        with patch('smsc_api.request_smsc') as mock_function:
-            mock_function.return_value = {'cnt': 1, 'id': 24}
-            # mock_function.return_value = {'status': 1, 'last_date': '28.12.2019 19:20:22', 'last_timestamp': 1577550022}
-            sms_id = (await smsc_api.request_smsc_mock(env('SMSC_LOGIN'), env('SMSC_PASSWORD')))['id']
-        print(f'sms_id {sms_id}')
-        print(f'Сообщение с текстом {form["text"]} отправлено')
-
-        sms_id = '99'
-
-        phones = [
-            '+7 999 519 05 57',
-            '911',
-            '112',
-        ]
+        
+        # если в настройках cost = 1 (стоимость рассылки без реальной отправки), то в ответе не будет id
+        if 'id' in send_ressponce:
+            sms_id = str(send_ressponce['id'])
+        else:
+            sms_id = '104063047'   # последнее известное реальное id
+        
+        # сохранение в базу данных
+        phones = env('PHONES').split(',')
         text = form['text']
-
         await trio_asyncio.aio_as_trio(db.add_sms_mailing)(sms_id, phones, text)
-
-        sms_ids = await trio_asyncio.aio_as_trio(db.list_sms_mailings())
-        print('В БД есть СМС с этими id', sms_ids)
-
-        # pending_sms_list = await trio_asyncio.aio_as_trio(db.get_pending_sms_list())
-        # print('pending:')
-        # print(pending_sms_list)
-        #
-        # await trio_asyncio.aio_as_trio(db.update_sms_status_in_bulk([
-        #     # [sms_id, phone_number, status]
-        #     [sms_id, '112', 'failed'],
-        #     [sms_id, '911', 'pending'],
-        #     [sms_id, '+7 999 519 05 57', 'delivered'],
-        #     # following statuses are available: failed, pending, delivered
-        # ]))
-        #
-        # pending_sms_list = await trio_asyncio.aio_as_trio(db.get_pending_sms_list())
-        # print('pending:')
-        # print(pending_sms_list)
-        #
-        # sms_mailings = await trio_asyncio.aio_as_trio(db.get_sms_mailings(sms_id))
-        # print('sms_mailings')
-        # print(sms_mailings)
+        
+        # проверка статуса
+        for phone in env('PHONES').split(','):
+            status_ressponce = await smsc_api.request_smsc(
+                http_method='POST',
+                api_method='status',
+                login=env('SMSC_LOGIN'),
+                password=env('SMSC_PASSWORD'),
+                payload={'phone': phone, 'id': sms_id}
+            )
+            # print(status_ressponce)
 
         return json.dumps(form['text'])
     else:
@@ -115,23 +88,23 @@ async def index():
 # отправка фронтэнду информации о сообщении и статусе (тест в цикле)
 async def receive():
     while True:
+        sms_mailings = []
+        sms_ids = await trio_asyncio.aio_as_trio(db.list_sms_mailings())
+        for sms_id in sms_ids:
+            sms_mailing = (await trio_asyncio.aio_as_trio(db.get_sms_mailings(sms_id)))[0]
+            sms_mailings.append(
+                {
+                    "timestamp": sms_mailing['created_at'],
+                    "SMSText": sms_mailing['text'],
+                    "mailingId": sms_mailing['sms_id'],
+                    "totalSMSAmount": 100,
+                    "deliveredSMSAmount": 0,
+                    "failedSMSAmount": 0,
+                }
+            )
+        all_sms_info = {"msgType": "SMSMailingStatus", "SMSMailings": sms_mailings}
+        await websocket.send_json(all_sms_info)
         await trio.sleep(1)
-    #     for num in range(100):
-    #         data = {
-    #             "msgType": "SMSMailingStatus",
-    #             "SMSMailings": [
-    #                 {
-    #                     "timestamp": 1123131392.734,
-    #                     "SMSText": "Сегодня гроза! Будьте осторожны!",
-    #                     "mailingId": "1",
-    #                     "totalSMSAmount": 100,
-    #                     "deliveredSMSAmount": num,
-    #                     "failedSMSAmount": 0,
-    #                 },
-    #             ]
-    #         }
-    #         await websocket.send_json(data)
-    #         await trio.sleep(1)
 
 
 @app.websocket('/ws')
@@ -144,7 +117,7 @@ async def ws():
 
 
 async def run_server():
-    async with trio_asyncio.open_loop() as loop:
+    async with trio_asyncio.open_loop():
         config = HyperConfig()
         config.bind = [f"127.0.0.1:5000"]
         config.use_reloader = True
